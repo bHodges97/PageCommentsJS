@@ -27,7 +27,6 @@ var pagecommentsjs = {
 				for(let x in pagecommentsjs.comments){
 					let highlighted = pagecommentsjs.comments[x].highlighted 
 					for(let y in highlighted){
-						console.log(highlighted[y])
 						if(selection.containsNode(highlighted[y],true)){
 							flag = false;
 							break outer
@@ -82,7 +81,9 @@ var pagecommentsjs = {
 	clearSelection: function(sel){
 		let elems = sel.highlighted
 		for(var x in elems){
+			let n = elems[x].parentNode.parentNode;
 			elems[x].outerHTML = elems[x].innerHTML
+			n.normalize()//removing spans splits text up into multiple nodes. use normalise to return them to normal
 		}
 		sel.remove()
 	},
@@ -159,9 +160,11 @@ var pagecommentsjs = {
 					middle.className = "commenthighlight"
 					let parent = node.parentNode;
 					parent.replaceChild(nodes[0],node)
+					let sibling = nodes[0].nextSibling
 					for(let n = 1;n < nodes.length;n++){
-						parent.appendChild(nodes[n])
+						parent.insertBefore(nodes[n],sibling)
 					}
+					commentdiv.highlighted.push(middle)
 				}
 
 			}
