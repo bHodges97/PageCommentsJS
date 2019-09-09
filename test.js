@@ -139,32 +139,27 @@ var pagecommentsjs = {
 					node.parentNode.replaceChild(span,node)
 					commentdiv.highlighted.push(span)
 				}else if(node.nodeType == Node.TEXT_NODE){
-					let start = node == sel.startContainer 
-					let end = node == sel.endContainer 
+					let str = node.nodeValue
+					let start = 0 
+					let end = str.length
+					let nodes = []
 					// Split up text to highlight only selected parts
-					if(start){
-						let start = document.createTextNode(node.nodeValue.substring(0,sel.startOffset))
-						let end = document.createElement("span")
-						let parent = node.parentNode;
-
-						end.innerHTML = node.nodeValue.substring(sel.startOffset) 
-						end.className = "commenthighlight"
-						parent.replaceChild(start,node)
-						parent.appendChild(end)
-
-						node = end.firstChild
-						commentdiv.highlighted.push(end)
+					if(node == sel.startContainer){
+						start = sel.startOffset
+						nodes.push(document.createTextNode(node.nodeValue.substring(0,start)))
 					}
-					if(end){
-						let start = document.createElement("span")
-						let end = document.createTextNode(node.nodeValue.substring(sel.endOffset))
-						let parent = node.parentNode;
-
-						start.innerHTML = node.nodeValue.substring(0,sel.endOffset)
-						start.className = "commenthighlight"
-						parent.replaceChild(start,node)
-						parent.appendChild(end)
-						commentdiv.highlighted.push(start)
+					let middle = document.createElement("span")
+					nodes.push(middle)
+					if(node == sel.endContainer){
+						end = sel.endOffset
+						nodes.push(document.createTextNode(node.nodeValue.substring(end)))
+					}
+					middle.innerHTML = str.substring(start,end)
+					middle.className = "commenthighlight"
+					let parent = node.parentNode;
+					parent.replaceChild(start,node)
+					for(let n in nodes){
+						parent.appendChild(nodes[n])
 					}
 				}
 
