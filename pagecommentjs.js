@@ -143,7 +143,7 @@ var pagecommentsjs = {
 			for(let x in elems){
 				let node = elems[x]
 				if(node != sel.endContainer && node != sel.startContainer){
-					let span = document.createElement("span")
+					let span = document.createElement("mark")
 					span.className = "commenthighlight"
 					span.innerHTML = node.nodeValue
 					node.parentNode.replaceChild(span,node)
@@ -158,7 +158,7 @@ var pagecommentsjs = {
 						start = sel.startOffset
 						nodes.push(document.createTextNode(node.nodeValue.substring(0,start)))
 					}
-					let middle = document.createElement("span")
+					let middle = document.createElement("mark")
 					nodes.push(middle)
 					if(node === sel.endContainer){
 						end = sel.endOffset
