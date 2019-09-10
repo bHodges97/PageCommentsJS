@@ -2,7 +2,12 @@
 var pagecommentsjs = {
 	bubble: null,
 	url: '/',
-	comments: {count: 0, push: function(e){this[this.count++] = e}, remove: function(e){for(let x = 0;x < this.count; x++)if(this[x]===e){delete this[x];break}}},
+	comments: {
+		count: 0,
+		push: function(e){this[this.count++] = e},
+		index: function(e){for(let x = 0;x < this.count; x++){if(this[x]===e)return x} return null},
+		remove: function(e){let i = this.index(e);if(i){delete this[i]}},
+		},
 
 	load: function(){
 		let image = document.createElement("img")
@@ -172,9 +177,11 @@ var pagecommentsjs = {
 
 	submitComment: function(div){
 		let commentbox = div.getElementsByTagName("textarea")[0]
-		let payload = {commment: commentbox.value, highlighted: [], username: undefined}
+		let comments = pagecommentsjs.comments;
+		let payload = {id: comments.index(div), highlighted: [], comment: commentbox.value, username: undefined}
+		console.log(payload)
 		for(let i = 0;i < div.highlighted.length; i++){
-			payload.highlight.push(pagecommentsjs.getDomPath(div.highlighted[i]))
+			payload.highlighted.push(pagecommentsjs.getDomPath(div.highlighted[i]))
 		}
 		fetch(pagecommentsjs.url + "submit.php", 
 			{method: 'POST',headers: {'Content-Type': 'application/json',},
