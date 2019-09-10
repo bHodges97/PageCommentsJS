@@ -1,7 +1,8 @@
 "use strict"
 var pagecommentsjs = {
 	bubble: null,
-	comments: [],
+	url: '/',
+	comments: {count: 0, push: function(e){this[this.count++] = e}, remove: function(e){for(let x = 0;x < this.count; x++)if(this[x]===e){delete this[x];break}}},
 
 	load: function(){
 		let image = document.createElement("img")
@@ -60,25 +61,13 @@ var pagecommentsjs = {
 		return rangeNodes;
 	},
 
-	clearSelection: function(div){
-		let elems = div.highlighted
-		for(var x in elems){
-			let n = elems[x].parentNode.parentNode;
-			elems[x].outerHTML = elems[x].innerHTML
-			n.normalize()//removing spans splits text up into multiple nodes. use normalise to return them to normal
-		}
-		div.remove()
-		let idx = pagecommentsjs.comments.indexof(div)
-		if(idx !== -1) pagecommentsjs.comments.splice(idx, 1)
-	},
-
 	onMouseUp: function(e){
 		let selection = document.getSelection()
 		let bubble = pagecommentsjs.bubble
 		if(selection.type === "Range"){
 			let flag = true;
 			outer:
-			for(let x in pagecommentsjs.comments){
+			for(let x = 0; x < pagecommentsjs.comments.count; x++){
 				let highlighted = pagecommentsjs.comments[x].highlighted 
 				for(let y in highlighted){
 					if(selection.containsNode(highlighted[y],true)){
@@ -94,7 +83,7 @@ var pagecommentsjs = {
 			}
 		}
 	},
-	
+
 	onClick: function(e){
 		let bubble = pagecommentsjs.bubble
 		bubble.style.opacity = 0
@@ -119,6 +108,7 @@ var pagecommentsjs = {
 		let submit = document.createElement("button")
 		let cancel = document.createElement("button")
 		submit.innerHTML = "comment"
+		submit.addEventListener("click", ()=>pagecommentsjs.submitComment(commentdiv))
 		cancel.innerHTML = "cancel"
 		cancel.addEventListener("click", ()=>pagecommentsjs.clearSelection(commentdiv))
 		commentdiv.appendChild(text)
@@ -179,5 +169,55 @@ var pagecommentsjs = {
 		}
 		selection.empty();
 	},
+
+	submitComment: function(div){
+		let commentbox = div.getElementsByTagName("textarea")[0]
+		let payload = {commment: commentbox.value, highlighted: [], username: undefined}
+		for(let i = 0;i < div.highlighted.length; i++){
+			payload.highlight.push(pagecommentsjs.getDomPath(div.highlighted[i]))
+		}
+		fetch(pagecommentsjs.url + "submit.php", 
+			{method: 'POST',headers: {'Content-Type': 'application/json',},
+			body: JSON.stringify(payload),
+		})
+	},
+
+	clearSelection: function(div){
+		let elems = div.highlighted
+		for(let x in elems){
+			let n = elems[x].parentNode.parentNode;
+			elems[x].outerHTML = elems[x].innerHTML
+			n.normalize()//removing spans splits text up into multiple nodes. use normalise to return them to normal
+		}
+		div.remove()
+		pagecommentsjs.comments.remove(div)
+	},
+
+	getDomPath: function(el) {
+		if (!el) {
+			return;
+		}
+		var stack = [];
+		while (el.parentNode != null) {
+			var sibCount = 0;
+			var sibIndex = 0;
+			for ( var i = 0; i < el.parentNode.childNodes.length; i++ ) {
+				var sib = el.parentNode.childNodes[i];
+				if ( sib.nodeName == el.nodeName ) {
+					if ( sib === el ) {
+						sibIndex = sibCount;
+					}
+					sibCount++;
+				}
+			}
+			var nodeName = el.nodeName.toLowerCase();
+			stack.push([nodeName,sibIndex]);
+			el = el.parentNode;
+		}
+		stack.pop();
+		stack.reverse(); // removes the html element
+		return stack;
+	},
+
 }
 window.onload = pagecommentsjs.load
