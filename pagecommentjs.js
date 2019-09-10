@@ -9,47 +9,26 @@ var pagecommentsjs = {
 		image.alt = "Add a comment" 
 		let bubble = document.createElement("div")
 		bubble.appendChild(image)
+
 		bubble.style.opacity = 0
 		bubble.style.position = 'absolute'
 		bubble.style.right = "22%"
 		bubble.style.cursor = "pointer"
-		this.bubble = bubble
+		pagecommentsjs.bubble = bubble
 
 		document.body.appendChild(bubble)
 
 		bubble.addEventListener("click", pagecommentsjs.onClick)
-		document.addEventListener("mouseup",(e)=>{
-			let selection = document.getSelection();
-			if(selection.type == "Range")
-			{
-				let flag = true;
-				outer:
-				for(let x in pagecommentsjs.comments){
-					let highlighted = pagecommentsjs.comments[x].highlighted 
-					for(let y in highlighted){
-						if(selection.containsNode(highlighted[y],true)){
-							flag = false;
-							break outer
-						}
-					}
-				}
-				if(flag){
-					bubble.style.top=e.clientY+"px";
-					bubble.style.opacity = 1
-					bubble.selection = selection
-				}
-			}
-
-		})
-
+		document.addEventListener("mouseup",pagecommentsjs.onMouseUp)
 		document.addEventListener("mousedown",(e) => {
-			bubble.style.opacity = 0;
+			bubble.style.opacity = 0
 		})
-		var style = document.createElement('style');
-		style.type = 'text/css';
-		style.innerHTML = '.commenthighlight { background-color: #FFFF00; }';
-		document.getElementsByTagName('head')[0].appendChild(style);
+		var style = document.createElement('style')
+		style.type = 'text/css'
+		style.innerHTML = '.commenthighlight { background-color: #FFFF00;} '
+		style.innerHTML += ".commentdiv {width: 250px; max-width: 250px; border: solid; opacity: 1; background-color: #FFFFFF; z-index: 1; position: absolute; right: 5%;}"
 
+		document.getElementsByTagName('head')[0].appendChild(style)
 	},
 
 	nextNode: function(node){
@@ -66,36 +45,65 @@ var pagecommentsjs = {
 	},
 
 	getRangeSelectedNodes: function(range){
-		var node = range.startContainer;
-		var endNode = range.endContainer;
-		if (node == endNode) {
-			return [node];
-		}
-		var rangeNodes = [node];
-		while (node && node != endNode) {
-			rangeNodes.push(node = this.nextNode(node))
+		let node = range.startContainer;
+		let endNode = range.endContainer;
+		let rangeNodes = []
+		while (node) {
+			if(node.nodeType === Node.TEXT_NODE){
+				rangeNodes.push(node)
+			}
+			if(node === endNode){
+				break;
+			}
+			node = pagecommentsjs.nextNode(node)
 		}
 		return rangeNodes;
 	},
 
-	clearSelection: function(sel){
-		let elems = sel.highlighted
+	clearSelection: function(div){
+		let elems = div.highlighted
 		for(var x in elems){
 			let n = elems[x].parentNode.parentNode;
 			elems[x].outerHTML = elems[x].innerHTML
 			n.normalize()//removing spans splits text up into multiple nodes. use normalise to return them to normal
 		}
-		sel.remove()
+		div.remove()
+		let idx = pagecommentsjs.comments.indexof(div)
+		if(idx !== -1) pagecommentsjs.comments.splice(idx, 1)
+	},
+
+	onMouseUp: function(e){
+		let selection = document.getSelection()
+		let bubble = pagecommentsjs.bubble
+		if(selection.type === "Range"){
+			let flag = true;
+			outer:
+			for(let x in pagecommentsjs.comments){
+				let highlighted = pagecommentsjs.comments[x].highlighted 
+				for(let y in highlighted){
+					if(selection.containsNode(highlighted[y],true)){
+						flag = false;
+						break outer
+					}
+				}
+			}
+			if(flag){
+				bubble.style.top=e.clientY+"px"
+				bubble.style.opacity = 1
+				bubble.selection = selection
+			}
+		}
 	},
 	
 	onClick: function(e){
+		let bubble = pagecommentsjs.bubble
 		bubble.style.opacity = 0
 		e.preventDefault()
 		let str = bubble.selection.toString()
-		if(!str || str.length == 0){
+		if(!str || str.length === 0){
 			return;			
 		}
-
+		//Creating comment box
 		let commentdiv = document.createElement("div")
 		let text = document.createElement("div")
 		let textinput = document.createElement("textarea")
@@ -118,41 +126,41 @@ var pagecommentsjs = {
 		commentdiv.appendChild(document.createElement("br"))
 		commentdiv.appendChild(submit)
 		commentdiv.appendChild(cancel)
-		
-		commentdiv.style.cssText += ";width: 250px; max-width: 250px; border: solid; opacity: 1; background-color: #FFFFFF; z-index: 1"
-		commentdiv.style.position = "absolute"
+		commentdiv.className = "commentdiv"
 		commentdiv.style.top = bubble.style.top
-		commentdiv.style.right = "5%"
 		document.body.appendChild(commentdiv)
 		pagecommentsjs.comments.push(commentdiv)
-		commentdiv.selection = bubble.selection
+		pagecommentsjs.highlight(commentdiv)
+	},
 
+	highlight: function(commentdiv){
 		//highlight selection
 		commentdiv.highlighted = [] 
-		for(let i = 0; i < bubble.selection.rangeCount; i++){
-			let sel = bubble.selection.getRangeAt(i)
+		let selection = document.getSelection()
+		for(let i = 0; i < selection.rangeCount; i++){
+			let sel = selection.getRangeAt(i)
 			let elems = pagecommentsjs.getRangeSelectedNodes(sel)
 			for(let x in elems){
 				let node = elems[x]
-				if(node != sel.endContainer && node != sel.startContainer && node.nodeType == Node.TEXT_NODE){
+				if(node != sel.endContainer && node != sel.startContainer){
 					let span = document.createElement("span")
 					span.className = "commenthighlight"
 					span.innerHTML = node.nodeValue
 					node.parentNode.replaceChild(span,node)
 					commentdiv.highlighted.push(span)
-				}else if(node.nodeType == Node.TEXT_NODE){
+				}else{
 					let str = node.nodeValue
 					let start = 0 
 					let end = str.length
 					let nodes = []
 					// Split up text to highlight only selected parts
-					if(node == sel.startContainer){
+					if(node === sel.startContainer){
 						start = sel.startOffset
 						nodes.push(document.createTextNode(node.nodeValue.substring(0,start)))
 					}
 					let middle = document.createElement("span")
 					nodes.push(middle)
-					if(node == sel.endContainer){
+					if(node === sel.endContainer){
 						end = sel.endOffset
 						nodes.push(document.createTextNode(node.nodeValue.substring(end)))
 					}
@@ -169,7 +177,7 @@ var pagecommentsjs = {
 
 			}
 		}
-		window.getSelection().empty();
+		selection.empty();
 	},
 }
 window.onload = pagecommentsjs.load
