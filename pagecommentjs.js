@@ -33,8 +33,20 @@ var pagecommentsjs = {
 		style.type = 'text/css'
 		style.innerHTML = '.commenthighlight { background-color: #FFFF00;} '
 		style.innerHTML += ".commentdiv {width: 250px; max-width: 250px; border: solid; opacity: 1; background-color: #FFFFFF; z-index: 1; position: absolute; right: 5%;}"
-
+		style.innerHTML += ".commentbox {width: 245px; max-width: 245px; word-wrap: break-word; resize: vertical;}"
+		
+		pagecommentsjs.loadComments()
 		document.getElementsByTagName('head')[0].appendChild(style)
+	},
+
+	loadComments: function(){
+		fetch(pagecommentsjs.url + "load.php").then(res=>res.json()).then((res)=>{
+			let count = res.count;
+			for(let i = 0;i < count; i ++){
+
+			
+			}
+		});
 	},
 
 	nextNode: function(node){
@@ -61,7 +73,18 @@ var pagecommentsjs = {
 			if(node === endNode){
 				break;
 			}
-			node = pagecommentsjs.nextNode(node)
+			if(node.hasChildNodes()){
+				node = node.firstChild;
+			}else{
+				while(node && !node.nextSibling){
+					node = node.parentNode;
+				}
+				if(node){
+					node = node.nextSibling;
+				}else{
+					node = null
+				}
+			}
 		}
 		return rangeNodes;
 	},
@@ -69,7 +92,7 @@ var pagecommentsjs = {
 	onMouseUp: function(e){
 		let selection = document.getSelection()
 		let bubble = pagecommentsjs.bubble
-		if(selection.type === "Range"){
+		if(selection.type === "Range" && selection.toString().length > 0){
 			let flag = true;
 			outer:
 			for(let x = 0; x < pagecommentsjs.comments.count; x++){
@@ -81,8 +104,10 @@ var pagecommentsjs = {
 					}
 				}
 			}
+			let anchor = selection.anchorNode
+			if(anchor.nodeType == Node.TEXT_NODE)anchor = anchor.parentNode;
 			if(flag){
-				bubble.style.top=e.clientY+"px"
+				bubble.style.top= pagecommentsjs.elemY(anchor)
 				bubble.style.opacity = 1
 				bubble.selection = selection
 			}
@@ -93,99 +118,133 @@ var pagecommentsjs = {
 		let bubble = pagecommentsjs.bubble
 		bubble.style.opacity = 0
 		e.preventDefault()
-		let str = bubble.selection.toString()
+		let selection = document.getSelection()
+		let str = selection.toString()
 		if(!str || str.length === 0){
 			return;			
 		}
-		//Creating comment box
-		let commentdiv = document.createElement("div")
-		let text = document.createElement("div")
-		let textinput = document.createElement("textarea")
-		if(str.length > 100){
-			str = str.substring(0,40) + " ... " + str.substring(str.length-40)
+		if(selection.rangeCount > 1){
+			alert("Too many selections!")
+			return;
 		}
-		text.innerHTML = "\"" + str + "\""
-		text.style.maxWidth = "245px"
-		text.style.wordWrap = "break-word"
+		//highlight selected nodes
+		let sel = selection.getRangeAt(0)
+		let nodes = pagecommentsjs.getRangeSelectedNodes(sel)
+		let highlighted = pagecommentsjs.highlight(nodes, selection.anchorOffset, selection.focusOffset)
+		
+		//create comment div
+		let commentdiv = pagecommentsjs.createCommentDiv(str);
+		commentdiv.style.top = pagecommentsjs.elemY(highlighted[0].parentNode) 
+		commentdiv.highlighted = highlighted
+		commentdiv.highlightoffset = [selection.anchorOffset, selection.focusOffset]
+		pagecommentsjs.comments.push(commentdiv)
+		selection.empty();
+	},
+
+	elemY: function(e){
+		let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+		return e.getBoundingClientRect().top + scrollTop + "px" 
+	},
+
+	createCommentDiv: function(comment, users=[], comments=[]){
+		let commentdiv = document.createElement("div")
+		commentdiv.className = "commentdiv"
+		
+		//Comment target
+		let text = document.createElement("div")
+		if(comment.length > 200){
+			comment = comment.substring(0,80) + " ... " + comment.substring(comment.length-80)
+		}
+		text.innerHTML = "\"" + comment + "\""
+		text.className = "commentbox"
+		
+		//Input comment area
+		let textinput = document.createElement("textarea")
+		textinput.className = "commentbox"
 		textinput.rows = 3
-		textinput.style.width = "245px"
-		textinput.style.resize = "vertical"
 		let submit = document.createElement("button")
 		let cancel = document.createElement("button")
 		submit.innerHTML = "comment"
-		submit.addEventListener("click", ()=>pagecommentsjs.submitComment(commentdiv))
 		cancel.innerHTML = "cancel"
+		submit.addEventListener("click", ()=>pagecommentsjs.submitComment(commentdiv))
 		cancel.addEventListener("click", ()=>pagecommentsjs.clearSelection(commentdiv))
+
+		//append to div
 		commentdiv.appendChild(text)
 		commentdiv.appendChild(textinput)
 		commentdiv.appendChild(document.createElement("br"))
 		commentdiv.appendChild(submit)
 		commentdiv.appendChild(cancel)
-		commentdiv.className = "commentdiv"
-		commentdiv.style.top = bubble.style.top
 		document.body.appendChild(commentdiv)
-		pagecommentsjs.comments.push(commentdiv)
-		pagecommentsjs.highlight(commentdiv)
+		return commentdiv;
 	},
 
-	highlight: function(commentdiv){
-		//highlight selection
-		commentdiv.highlighted = [] 
-		let selection = document.getSelection()
-		for(let i = 0; i < selection.rangeCount; i++){
-			let sel = selection.getRangeAt(i)
-			let elems = pagecommentsjs.getRangeSelectedNodes(sel)
-			for(let x in elems){
-				let node = elems[x]
-				if(node != sel.endContainer && node != sel.startContainer){
-					let span = document.createElement("mark")
-					span.className = "commenthighlight"
-					span.innerHTML = node.nodeValue
-					node.parentNode.replaceChild(span,node)
-					commentdiv.highlighted.push(span)
-				}else{
-					let str = node.nodeValue
-					let start = 0 
-					let end = str.length
-					let nodes = []
-					// Split up text to highlight only selected parts
-					if(node === sel.startContainer){
-						start = sel.startOffset
-						nodes.push(document.createTextNode(node.nodeValue.substring(0,start)))
-					}
-					let middle = document.createElement("mark")
-					nodes.push(middle)
-					if(node === sel.endContainer){
-						end = sel.endOffset
-						nodes.push(document.createTextNode(node.nodeValue.substring(end)))
-					}
-					middle.innerHTML = str.substring(start,end)
-					middle.className = "commenthighlight"
-					let parent = node.parentNode;
-					parent.replaceChild(nodes[0],node)
-					let sibling = nodes[0].nextSibling
-					for(let n = 1;n < nodes.length;n++){
-						parent.insertBefore(nodes[n],sibling)
-					}
-					commentdiv.highlighted.push(middle)
+	highlight: function(tohighlight, startOffset, endOffset){
+		let highlighted = []
+		for(let x = 0; x < tohighlight.length; x++){
+			let node = tohighlight[x]
+			if(x != 0 && x != tohighlight.length - 1){
+				let span = document.createElement("mark")
+				span.className = "commenthighlight"
+				span.innerHTML = node.nodeValue
+				node.parentNode.replaceChild(span,node)
+				highlighted.push(span)
+			}else{
+				let str = node.nodeValue
+				let start = 0 
+				let end = str.length
+				let nodes = []
+				// Split up text to highlight only selected parts
+				if(x == 0){
+					start = startOffset
+					nodes.push(document.createTextNode(node.nodeValue.substring(0,start)))
 				}
-
+				let middle = document.createElement("mark")
+				nodes.push(middle)
+				if(x == tohighlight.length - 1){
+					end = endOffset
+					nodes.push(document.createTextNode(node.nodeValue.substring(end)))
+				}
+				middle.innerHTML = str.substring(start,end)
+				middle.className = "commenthighlight"
+				let parent = node.parentNode;
+				parent.replaceChild(nodes[0],node)
+				let sibling = nodes[0].nextSibling
+				for(let n = 1;n < nodes.length;n++){
+					parent.insertBefore(nodes[n],sibling)
+				}
+				parent.normalize()
+				highlighted.push(middle)
 			}
 		}
-		selection.empty();
+		return highlighted
 	},
 
 	submitComment: function(div){
 		let commentbox = div.getElementsByTagName("textarea")[0]
+		if(!commentbox.value){
+			alert("Comment is blank!")
+			return
+		}
 		let comments = pagecommentsjs.comments;
-		let payload = {id: comments.index(div), highlighted: [], comment: commentbox.value, username: undefined}
-		console.log(payload)
+		let payload = {
+			id: comments.index(div),
+			highlighted: [],
+			position: div.style.top,
+			offset: div.highlightoffset,
+			comment: commentbox.value,
+			username: undefined}
 		for(let i = 0;i < div.highlighted.length; i++){
 			payload.highlighted.push(pagecommentsjs.getDomPath(div.highlighted[i]))
 		}
 		fetch(pagecommentsjs.url + "submit.php", 
 			{method: 'POST',headers: {'Content-Type': 'application/json',},
 			body: JSON.stringify(payload),
+		}).then(res=>res.text()).then((res)=>{
+			let span = document.createElement("span");
+			span.innerHTML = res
+			div.insertBefore(span,commentbox)
+			div.insertBefore(document.createElement("br"),commentbox)
 		})
 	},
 

@@ -5,9 +5,10 @@ $obj = json_decode($data, true);
 $id = $obj["id"];
 $highlighted = $obj["highlighted"];
 $comment = $obj["comment"];
+$offset = $obj["offset"];
 $username = $obj["username"];
 $folder = __DIR__ . "/comments/";
-$file = $folder . $id; 
+$file = $folder . $id . ".json"; 
 
 if (!file_exists($folder)) {
     mkdir($folder, 0777, true);
@@ -18,6 +19,7 @@ if (!file_exists($file)) {
 	$newfile['highlighted'] = $highlighted;
 	$newfile['comments'] = array($comment);
 	$newfile['usernames'] = array($username);
+	$newfile['offset'] = $offset;
 	$fp = fopen($file, 'w');
 	fwrite($fp, json_encode($newfile));
 	fclose($fp);
@@ -33,5 +35,7 @@ if (!file_exists($file)) {
 	fwrite($fp, json_encode($json));
 	fclose($fp);
 }
+
+echo $username . ": " . $comment
 
 ?>
