@@ -5,7 +5,7 @@ var pagecommentsjs = {
 	comments: {
 		count: 0,
 		push: function(e){this[this.count++] = e},
-		index: function(e){for(let x = 0;x < this.count; x++){if(this[x]===e)return x} return null},
+		index: function(e){for(let x in this){if(this[x]===e)return x} return null},
 		remove: function(e){let i = this.index(e);if(i){delete this[i]}},
 		},
 
@@ -42,24 +42,34 @@ var pagecommentsjs = {
 	loadComments: function(){
 		fetch(pagecommentsjs.url + "load.php").then(res=>res.json()).then((res)=>{
 			let count = res.count;
+			pagecommentsjs.comments.count = count
 			for(let i = 0;i < count; i ++){
-
-			
+				let nodes = []
+				for(let path of res[i].highlighted){
+					let node = document.getElementsByTagName("html")[0];
+					for(let step of path){
+						for(let n of node.childNodes){
+							if(n.nodeName.toLowerCase() == step[0]){
+								if(!step[1]){
+									node = n;
+									break;
+								}
+								step[1]--;
+							}
+						}
+					}
+					nodes.push(node.firstChild);
+				}
+				let highlighted = pagecommentsjs.highlight(nodes, res[i].offset[0], res[i].offset[1])
+		
+				let commentdiv = pagecommentsjs.createCommentDiv(res[i].desc, res[i].usernames, res[i].comments)
+				pagecommentsjs.comments[i] = commentdiv
+		
+				commentdiv.style.top = pagecommentsjs.elemY(highlighted[0].parentNode) 
+				commentdiv.highlighted = highlighted
+				commentdiv.highlightoffset = res.offset
 			}
 		});
-	},
-
-	nextNode: function(node){
-		if(node.hasChildNodes()){
-			return node.firstChild;
-		}
-		while(node && !node.nextSibling){
-			node = node.parentNode;
-		}
-		if(!node){
-			return null;
-		}
-		return node.nextSibling;
 	},
 
 	getRangeSelectedNodes: function(range){
@@ -130,13 +140,14 @@ var pagecommentsjs = {
 		//highlight selected nodes
 		let sel = selection.getRangeAt(0)
 		let nodes = pagecommentsjs.getRangeSelectedNodes(sel)
-		let highlighted = pagecommentsjs.highlight(nodes, selection.anchorOffset, selection.focusOffset)
+		let offset =  [selection.anchorOffset, selection.focusOffset]
+		let highlighted = pagecommentsjs.highlight(nodes, offset[0], offset[1])
 		
 		//create comment div
 		let commentdiv = pagecommentsjs.createCommentDiv(str);
 		commentdiv.style.top = pagecommentsjs.elemY(highlighted[0].parentNode) 
 		commentdiv.highlighted = highlighted
-		commentdiv.highlightoffset = [selection.anchorOffset, selection.focusOffset]
+		commentdiv.highlightoffset = offset
 		pagecommentsjs.comments.push(commentdiv)
 		selection.empty();
 	},
@@ -146,17 +157,18 @@ var pagecommentsjs = {
 		return e.getBoundingClientRect().top + scrollTop + "px" 
 	},
 
-	createCommentDiv: function(comment, users=[], comments=[]){
+	createCommentDiv: function(fulltext, users=[], comments=[]){
 		let commentdiv = document.createElement("div")
 		commentdiv.className = "commentdiv"
 		
 		//Comment target
 		let text = document.createElement("div")
-		if(comment.length > 200){
-			comment = comment.substring(0,80) + " ... " + comment.substring(comment.length-80)
+		if(fulltext.length > 200){
+			fulltext = fulltext.substring(0,80) + " ... " + fulltext.substring(fulltext.length-80)
 		}
-		text.innerHTML = "\"" + comment + "\""
+		text.innerHTML = "\"" + fulltext + "\""
 		text.className = "commentbox"
+		commentdiv.fulltext = fulltext
 		
 		//Input comment area
 		let textinput = document.createElement("textarea")
@@ -171,6 +183,12 @@ var pagecommentsjs = {
 
 		//append to div
 		commentdiv.appendChild(text)
+		for(var i = 0; i < users.length; i++){
+			let span = document.createElement("span");
+			span.innerHTML = users[i]+ ": " + comments[i]
+			commentdiv.appendChild(span)
+			commentdiv.appendChild(document.createElement("br"))
+		}
 		commentdiv.appendChild(textinput)
 		commentdiv.appendChild(document.createElement("br"))
 		commentdiv.appendChild(submit)
@@ -228,14 +246,16 @@ var pagecommentsjs = {
 		}
 		let comments = pagecommentsjs.comments;
 		let payload = {
+			desc: div.fulltext,
 			id: comments.index(div),
 			highlighted: [],
 			position: div.style.top,
 			offset: div.highlightoffset,
 			comment: commentbox.value,
 			username: undefined}
+
 		for(let i = 0;i < div.highlighted.length; i++){
-			payload.highlighted.push(pagecommentsjs.getDomPath(div.highlighted[i]))
+			payload.highlighted.push(pagecommentsjs.getDomPath(div.highlighted[i].parentNode))
 		}
 		fetch(pagecommentsjs.url + "submit.php", 
 			{method: 'POST',headers: {'Content-Type': 'application/json',},
@@ -260,23 +280,21 @@ var pagecommentsjs = {
 	},
 
 	getDomPath: function(el) {
-		if (!el) {
+		if(!el) {
 			return;
 		}
-		var stack = [];
-		while (el.parentNode != null) {
-			var sibCount = 0;
-			var sibIndex = 0;
-			for ( var i = 0; i < el.parentNode.childNodes.length; i++ ) {
-				var sib = el.parentNode.childNodes[i];
-				if ( sib.nodeName == el.nodeName ) {
-					if ( sib === el ) {
-						sibIndex = sibCount;
+		let stack = [];
+		while(el.parentNode != null) {
+			let sibIndex = 0;
+			for(let sib of el.parentNode.childNodes) {
+				if(sib.nodeName == el.nodeName) {
+					if (sib === el){
+						break;
 					}
-					sibCount++;
+					sibIndex++;
 				}
 			}
-			var nodeName = el.nodeName.toLowerCase();
+			let nodeName = el.nodeName.toLowerCase();
 			stack.push([nodeName,sibIndex]);
 			el = el.parentNode;
 		}
@@ -284,6 +302,5 @@ var pagecommentsjs = {
 		stack.reverse(); // removes the html element
 		return stack;
 	},
-
 }
 window.onload = pagecommentsjs.load

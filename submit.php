@@ -4,6 +4,7 @@ $data = file_get_contents('php://input');
 $obj = json_decode($data, true);
 $id = $obj["id"];
 $highlighted = $obj["highlighted"];
+$desc = $obj["desc"];
 $comment = $obj["comment"];
 $offset = $obj["offset"];
 $username = $obj["username"];
@@ -16,10 +17,11 @@ if (!file_exists($folder)) {
 
 if (!file_exists($file)) {
 	$newfile = array();
+	$newfile['desc'] = $desc;
+	$newfile['offset'] = $offset;
 	$newfile['highlighted'] = $highlighted;
 	$newfile['comments'] = array($comment);
 	$newfile['usernames'] = array($username);
-	$newfile['offset'] = $offset;
 	$fp = fopen($file, 'w');
 	fwrite($fp, json_encode($newfile));
 	fclose($fp);
