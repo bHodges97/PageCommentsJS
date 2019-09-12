@@ -32,7 +32,7 @@ var pagecommentsjs = {
 		var style = document.createElement('style')
 		style.type = 'text/css'
 		style.innerHTML = '.commenthighlight { background-color: #FFFF00;} '
-		style.innerHTML += ".commentdiv {width: 250px; max-width: 250px; border: solid; opacity: 1; background-color: #FFFFFF; z-index: 1; position: absolute; right: 5%;}"
+		style.innerHTML += ".commentdiv {width: 250px;  max-width: 250px; border: 2px solid; border-radius: 5px; opacity: 1; background-color: #FFFFFF; z-index: 1; position: absolute; right: 5%;}"
 		style.innerHTML += ".commentbox {width: 245px; max-width: 245px; word-wrap: break-word; resize: vertical;}"
 		
 		pagecommentsjs.loadComments()
@@ -238,7 +238,7 @@ var pagecommentsjs = {
 		return highlighted
 	},
 
-	submitComment: function(div){
+	submitComment: function(div, username = "Test User"){
 		let commentbox = div.getElementsByTagName("textarea")[0]
 		if(!commentbox.value){
 			alert("Comment is blank!")
@@ -252,7 +252,7 @@ var pagecommentsjs = {
 			position: div.style.top,
 			offset: div.highlightoffset,
 			comment: commentbox.value,
-			username: undefined}
+			username: username}
 
 		for(let i = 0;i < div.highlighted.length; i++){
 			payload.highlighted.push(pagecommentsjs.getDomPath(div.highlighted[i].parentNode))
