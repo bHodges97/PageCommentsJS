@@ -2,6 +2,8 @@
 var pagecommentsjs = {
 	bubble: null,
 	url: '/',
+	colors: ["AliceBlue","AntiqueWhite","Aqua","Aquamarine","Azure","Beige","Bisque","Black","BlanchedAlmond","Blue","BlueViolet","Brown","BurlyWood","CadetBlue","Chartreuse","Chocolate","Coral","CornflowerBlue","Cornsilk","Crimson","Cyan","DarkBlue","DarkCyan","DarkGoldenRod","DarkGray","DarkGrey","DarkGreen","DarkKhaki","DarkMagenta","DarkOliveGreen","DarkOrange","DarkOrchid","DarkRed","DarkSalmon","DarkSeaGreen","DarkSlateBlue","DarkSlateGray","DarkSlateGrey","DarkTurquoise","DarkViolet","DeepPink","DeepSkyBlue","DimGray","DimGrey","DodgerBlue","FireBrick","FloralWhite","ForestGreen","Fuchsia","Gainsboro","GhostWhite","Gold","GoldenRod","Gray","Grey","Green","GreenYellow","HoneyDew","HotPink","IndianRed","Indigo","Ivory","Khaki","Lavender","LavenderBlush","LawnGreen","LemonChiffon","LightBlue","LightCoral","LightCyan","LightGoldenRodYellow","LightGray","LightGrey","LightGreen","LightPink","LightSalmon","LightSeaGreen","LightSkyBlue","LightSlateGray","LightSlateGrey","LightSteelBlue","LightYellow","Lime","LimeGreen","Linen","Magenta","Maroon","MediumAquaMarine","MediumBlue","MediumOrchid","MediumPurple","MediumSeaGreen","MediumSlateBlue","MediumSpringGreen","MediumTurquoise","MediumVioletRed","MidnightBlue","MintCream","MistyRose","Moccasin","NavajoWhite","Navy","OldLace","Olive","OliveDrab","Orange","OrangeRed","Orchid","PaleGoldenRod","PaleGreen","PaleTurquoise","PaleVioletRed","PapayaWhip","PeachPuff","Peru","Pink","Plum","PowderBlue","Purple","RebeccaPurple","Red","RosyBrown","RoyalBlue","SaddleBrown","Salmon","SandyBrown","SeaGreen","SeaShell","Sienna","Silver","SkyBlue","SlateBlue","SlateGray","SlateGrey","Snow","SpringGreen","SteelBlue","Tan","Teal","Thistle","Tomato","Turquoise","Violet","Wheat","White","WhiteSmoke","Yellow","YellowGreen"],
+	color_index: 0,
 	comments: {
 		count: 0,
 		push: function(e){this[this.count++] = e},
@@ -20,6 +22,7 @@ var pagecommentsjs = {
 		bubble.style.position = 'absolute'
 		bubble.style.right = "22%"
 		bubble.style.cursor = "pointer"
+		bubble.style.zindex = 9999
 		pagecommentsjs.bubble = bubble
 
 		document.body.appendChild(bubble)
@@ -46,21 +49,9 @@ var pagecommentsjs = {
 			for(let i = 0;i < count; i ++){
 				let nodes = []
 				for(let path of res[i].highlighted){
-					let node = document.getElementsByTagName("html")[0];
-					for(let step of path){
-						for(let n of node.childNodes){
-							if(n.nodeName.toLowerCase() == step[0]){
-								if(!step[1]){
-									node = n;
-									break;
-								}
-								step[1]--;
-							}
-						}
-					}
-					nodes.push(node.firstChild);
+					nodes.push(pagecommentsjs.getNodeFromPath(path))
 				}
-				let highlighted = pagecommentsjs.highlight(nodes, res[i].offset[0], res[i].offset[1])
+				let highlighted = pagecommentsjs.highlight(nodes, res[i].offset[0], res[i].offset[1],pagecommentsjs.colors[pagecommentsjs.color_index++])
 		
 				let commentdiv = pagecommentsjs.createCommentDiv(res[i].desc, res[i].usernames, res[i].comments)
 				pagecommentsjs.comments[i] = commentdiv
@@ -68,6 +59,7 @@ var pagecommentsjs = {
 				commentdiv.style.top = pagecommentsjs.elemY(highlighted[0].parentNode) 
 				commentdiv.highlighted = highlighted
 				commentdiv.highlightoffset = res.offset
+				pagecommentsjs.onMouseOver(highlighted,commentdiv)
 			}
 		});
 	},
@@ -99,17 +91,18 @@ var pagecommentsjs = {
 		return rangeNodes;
 	},
 
-	onMouseUp: function(e){
+	onMouseUp: function(e){//
 		let selection = document.getSelection()
 		let bubble = pagecommentsjs.bubble
 		if(selection.type === "Range" && selection.toString().length > 0){
 			let flag = true;
 			outer:
 			for(let x = 0; x < pagecommentsjs.comments.count; x++){
+				if(!(x in pagecommentsjs.comments))continue;
 				let highlighted = pagecommentsjs.comments[x].highlighted 
 				for(let y in highlighted){
-					if(selection.containsNode(highlighted[y],true)){
-						flag = false;
+					if(selection.containsNode(highlighted[y],true)){//function is experimental
+						//flag = false
 						break outer
 					}
 				}
@@ -117,14 +110,14 @@ var pagecommentsjs = {
 			let anchor = selection.anchorNode
 			if(anchor.nodeType == Node.TEXT_NODE)anchor = anchor.parentNode;
 			if(flag){
-				bubble.style.top= pagecommentsjs.elemY(anchor)
+				bubble.style.top = pagecommentsjs.elemY(anchor)
 				bubble.style.opacity = 1
 				bubble.selection = selection
 			}
 		}
 	},
 
-	onClick: function(e){
+	onClick: function(e){//Creating a new comment 
 		let bubble = pagecommentsjs.bubble
 		bubble.style.opacity = 0
 		e.preventDefault()
@@ -141,18 +134,19 @@ var pagecommentsjs = {
 		let sel = selection.getRangeAt(0)
 		let nodes = pagecommentsjs.getRangeSelectedNodes(sel)
 		let offset =  [selection.anchorOffset, selection.focusOffset]
-		let highlighted = pagecommentsjs.highlight(nodes, offset[0], offset[1])
+		let highlighted = pagecommentsjs.highlight(nodes, offset[0], offset[1], pagecommentsjs.colors[pagecommentsjs.color_index++])
 		
 		//create comment div
 		let commentdiv = pagecommentsjs.createCommentDiv(str);
 		commentdiv.style.top = pagecommentsjs.elemY(highlighted[0].parentNode) 
 		commentdiv.highlighted = highlighted
 		commentdiv.highlightoffset = offset
+		pagecommentsjs.onMouseOver(highlighted,commentdiv)
 		pagecommentsjs.comments.push(commentdiv)
 		selection.empty();
 	},
 
-	elemY: function(e){
+	elemY: function(e){//Get y position of node on screen 
 		let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
 		return e.getBoundingClientRect().top + scrollTop + "px" 
 	},
@@ -169,18 +163,6 @@ var pagecommentsjs = {
 		text.innerHTML = "\"" + fulltext + "\""
 		text.className = "commentbox"
 		commentdiv.fulltext = fulltext
-		
-		//Input comment area
-		let textinput = document.createElement("textarea")
-		textinput.className = "commentbox"
-		textinput.rows = 3
-		let submit = document.createElement("button")
-		let cancel = document.createElement("button")
-		submit.innerHTML = "comment"
-		cancel.innerHTML = "cancel"
-		submit.addEventListener("click", ()=>pagecommentsjs.submitComment(commentdiv))
-		cancel.addEventListener("click", ()=>pagecommentsjs.clearSelection(commentdiv))
-
 		//append to div
 		commentdiv.appendChild(text)
 		for(var i = 0; i < users.length; i++){
@@ -189,21 +171,36 @@ var pagecommentsjs = {
 			commentdiv.appendChild(span)
 			commentdiv.appendChild(document.createElement("br"))
 		}
+		//Input comment area
+		let textinput = document.createElement("textarea")
+		textinput.className = "commentbox"
+		textinput.rows = 3
 		commentdiv.appendChild(textinput)
 		commentdiv.appendChild(document.createElement("br"))
+		//add buttons
+		let submit = document.createElement("button")
+		submit.innerHTML = "comment"
+		submit.addEventListener("click", ()=>pagecommentsjs.submitComment(commentdiv))
 		commentdiv.appendChild(submit)
+		let cancel = document.createElement("button")
+		if(!users.length){
+			cancel.innerHTML = "cancel"
+			cancel.addEventListener("click", ()=>pagecommentsjs.clearSelection(commentdiv))
+		}else{
+			cancel.innerHTML = "delete"
+			cancel.addEventListener("click", ()=>alert("TODO"))
+		}
 		commentdiv.appendChild(cancel)
 		document.body.appendChild(commentdiv)
 		return commentdiv;
 	},
 
-	highlight: function(tohighlight, startOffset, endOffset){
+	highlight: function(tohighlight, startOffset, endOffset, color){
 		let highlighted = []
 		for(let x = 0; x < tohighlight.length; x++){
 			let node = tohighlight[x]
 			if(x != 0 && x != tohighlight.length - 1){
 				let span = document.createElement("mark")
-				span.className = "commenthighlight"
 				span.innerHTML = node.nodeValue
 				node.parentNode.replaceChild(span,node)
 				highlighted.push(span)
@@ -224,7 +221,6 @@ var pagecommentsjs = {
 					nodes.push(document.createTextNode(node.nodeValue.substring(end)))
 				}
 				middle.innerHTML = str.substring(start,end)
-				middle.className = "commenthighlight"
 				let parent = node.parentNode;
 				parent.replaceChild(nodes[0],node)
 				let sibling = nodes[0].nextSibling
@@ -235,7 +231,23 @@ var pagecommentsjs = {
 				highlighted.push(middle)
 			}
 		}
+		for(let span of highlighted){
+			span.className = "commenthighlight"
+			span.style.backgroundColor = color
+		}
+
 		return highlighted
+	},
+
+	onMouseOver: function(highlighted,div){
+		for(let span of highlighted){
+			span.addEventListener("mouseenter",()=>{
+				div.style.zIndex = 1000;
+			}); 
+			span.addEventListener("mouseleave",()=>{
+				div.style.zIndex = 1;
+			}); 
+		}
 	},
 
 	submitComment: function(div, username = "Test User"){
@@ -302,5 +314,23 @@ var pagecommentsjs = {
 		stack.reverse(); // removes the html element
 		return stack;
 	},
+	
+	getNodeFromPath: function(path){
+		let node = document.getElementsByTagName("html")[0];
+		for(let step of path){
+			for(let n of node.childNodes){
+				if(n.nodeName.toLowerCase() == step[0]){
+					if(!step[1]){
+						node = n;
+						break;
+					}
+					step[1]--;
+				}
+			}
+		}
+		return node.firstChild;
+	},
+
+
 }
 window.onload = pagecommentsjs.load
