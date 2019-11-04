@@ -1,4 +1,5 @@
 # PageCommentsJS
+Produced as part of an internship under [Julian Kunkel](https://hps.vi4io.org/about/people/julian_kunkel)
 
 When selecting a section of text, adds a button for leaving a comment. The selection of text is then wrapped around in the html tag <mark>.
 
@@ -18,12 +19,12 @@ The json  format for submitting comments is as followed:
 ```
 {
   //desc: highlighted text,
-	//id: commentbox id,
-	//highlighted: array of paths to highlighted elements (more below),
-	//position: pixel position of comment box relative to top of page,
-	//offset: if text is partially highlighted, the start/end offset is heere,
-	//comment: comment,
-	//username: username
+  //id: commentbox id,
+  //highlighted: array of paths to highlighted elements (more below),
+  //position: pixel position of comment box relative to top of page,
+  //offset: if text is partially highlighted, the start/end offset is heere,
+  //comment: comment,
+  //username: username
 }
 ```
 
